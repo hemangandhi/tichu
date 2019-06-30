@@ -1,11 +1,10 @@
-
-mod hand;
-mod player;
+#[macro_use] extern crate cached;
+mod tichu;
 
 fn main() {
-    let test = hand::Card {
-        suit: hand::Suit::House,
-        value: hand::Value::Numeric(7)
+    let test = tichu::hand::Card {
+        suit: tichu::hand::Suit::House,
+        value: tichu::hand::Value::Numeric(7)
     };
     println!("{:?}", test)
 }

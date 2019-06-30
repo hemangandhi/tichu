@@ -111,10 +111,34 @@ pub enum HandType{
     StraightFlush(Card, u32)
 }
 
+impl HandType {
+    pub fn num_cards(&self) -> u32 {
+        match &self {
+            HandType::Single(_) => 1,
+            HandType::Pair(_) => 2,
+            HandType::Triple(_) => 3,
+            HandType::FourOfAKind(_) => 4,
+            HandType::FullHouse(_, _) => 5,
+            HandType::ConsecutivePairs(_, len) => 2 * len.to_owned(),
+            HandType::Straight(_, len) => len.to_owned(),
+            HandType::StraightFlush(_, len) => len.to_owned()
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 pub struct Hand{
     rank: HandType,
     cards: Vec<Card>
+}
+
+cached!{
+    NCR;
+    fn ncr(n: u32, r:u32) -> u32 = {
+        if n < r { 0 }
+        else if n == r || r == 0 { 1 }
+        else { ncr(n - 1, r - 1) + ncr(n - 1, r) }
+    }
 }
 
 impl Hand {
@@ -125,14 +149,10 @@ impl Hand {
         }
     }
 
-    pub fn probability_of_being_beaten(&self, unseen_cards: Vec<Card>,
-                                       opp_hand_size: u32) -> f64 {
-        //number of hands that beat self * (number of cards left choose # other cards in hand)
-        //----------------------------------------------------------------------------------
-        //            (number of cards left choose the # cards left)
-        let winners: u32 = match &self.rank {
+    fn num_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> usize {
+        match &self.rank {
             HandType::Single(card) => {
-                unseen_cards.iter().filter(|&unseen| card < unseen).count();
+                unseen_cards.iter().filter(|&unseen| card < unseen).count()
             },
             HandType::Pair(card) => {
                 unseen_cards.iter().filter(|&unseen| {
@@ -158,11 +178,23 @@ impl Hand {
                 }).count() / 4
             }
         }
+    }
 
-        let winner_in_opp_hand: u32 = match &self.rank {
-            HandType::Single(_) => opp_hand_size - 1,
+    pub fn probability_of_being_beaten(&self, unseen_cards: &Vec<Card>,
+                                       opp_hand_size: u32) -> f64 {
+        //number of hands that beat self * (number of cards left choose # other cards in hand)
+        //----------------------------------------------------------------------------------
+        //            (number of cards left choose the # cards in hand)
+        let opp_hand_freedom: u32 = opp_hand_size - self.rank.num_cards();
+        if opp_hand_freedom < 0 { return 0f64; }
 
-        }
+        //TODO: fuck all this casting
+        //But also accounting for bombs worsens this, so there might have to be
+        //multiple functions
+        let winners: u32 = self.num_plays_that_beat(unseen_cards) as u32;
+        let numerator = (winners * ncr(unseen_cards.len() as u32, opp_hand_freedom)) as f64;
+        let denominator = ncr(unseen_cards.len() as u32, opp_hand_size) as f64;
+        return numerator / denominator;
     }
 }
 
