@@ -125,7 +125,11 @@ impl Hand {
         }
     }
 
-    pub fn probability_of_being_beaten(&self, unseen_cards: Vec<Card>) -> f64 {
+    pub fn probability_of_being_beaten(&self, unseen_cards: Vec<Card>,
+                                       opp_hand_size: u32) -> f64 {
+        //number of hands that beat self * (number of cards left choose # other cards in hand)
+        //----------------------------------------------------------------------------------
+        //            (number of cards left choose the # cards left)
         let winners: u32 = match &self.rank {
             HandType::Single(card) => {
                 unseen_cards.iter().filter(|&unseen| card < unseen).count();
@@ -153,6 +157,11 @@ impl Hand {
                     }).count() == 3
                 }).count() / 4
             }
+        }
+
+        let winner_in_opp_hand: u32 = match &self.rank {
+            HandType::Single(_) => opp_hand_size - 1,
+
         }
     }
 }
