@@ -1,5 +1,6 @@
+mod hand;
 
-pub type PlayerCards = [tishu::hand::Card; 14];
+pub type PlayerCards = [tichu::hand::Card; 14];
 
 pub struct Game{
     pub players: [PlayerCards; 4],
