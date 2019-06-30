@@ -124,6 +124,37 @@ impl Hand {
             _ => false
         }
     }
+
+    pub fn probability_of_being_beaten(&self, unseen_cards: Vec<Card>) -> f64 {
+        let winners: u32 = match &self.rank {
+            HandType::Single(card) => {
+                unseen_cards.iter().filter(|&unseen| card < unseen).count();
+            },
+            HandType::Pair(card) => {
+                unseen_cards.iter().filter(|&unseen| {
+                    card < unseen && unseen_cards.iter().any(|&pairer| {
+                        pairer.value == unseen.value && pairer != unseen
+                    })
+                }).count() / 2
+            },
+            HandType::Triple(card) => {
+                unseen_cards.iter().filter(|&unseen| {
+                    card < unseen &&
+                    unseen_cards.iter().filter(|&pairer| {
+                        pairer.value == unseen.value && pairer != unseen
+                    }).count() == 2
+                }).count() / 3
+            },
+            HandType::FourOfAKind(card) => {
+                unseen_cards.iter().filter(|&unseen| {
+                    card < unseen &&
+                    unseen_cards.iter().filter(|&pairer| {
+                        pairer.value == unseen.value && pairer != unseen
+                    }).count() == 3
+                }).count() / 4
+            }
+        }
+    }
 }
 
 //This comparision is for trick-taking/playing legalities...
@@ -215,5 +246,3 @@ impl PartialOrd for Hand {
         }
     }
 }
-
-

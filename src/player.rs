@@ -9,3 +9,5 @@ pub struct Game{
     pub cross_score: i32  // to distinguish the teams (players know
                           // about their partner)
 }
+
+
