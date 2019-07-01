@@ -21,10 +21,16 @@ pub enum Value{
     Dragon
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Eq, Debug)]
 pub struct Card{
     pub suit: Suit,
     pub value: Value
+}
+
+impl PartialEq for Card {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value && self.suit == other.suit
+    }
 }
 
 impl Ord for Card{
@@ -149,7 +155,8 @@ impl Hand {
         }
     }
 
-    fn num_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> usize {
+    //hypocritical in that bombs themselves should be passed in here
+    fn num_non_bomb_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> usize {
         match &self.rank {
             HandType::Single(card) => {
                 unseen_cards.iter().filter(|&unseen| card < unseen).count()
@@ -157,7 +164,7 @@ impl Hand {
             HandType::Pair(card) => {
                 unseen_cards.iter().filter(|&unseen| {
                     card < unseen && unseen_cards.iter().any(|&pairer| {
-                        pairer.value == unseen.value && pairer != unseen
+                        pairer.value == unseen.value && &pairer != unseen
                     })
                 }).count() / 2
             },
@@ -166,7 +173,7 @@ impl Hand {
                     card < unseen &&
                     unseen_cards.iter().filter(|&pairer| {
                         pairer.value == unseen.value && pairer != unseen
-                    }).count() == 2
+                    }).count() >= 2
                 }).count() / 3
             },
             HandType::FourOfAKind(card) => {
@@ -176,6 +183,20 @@ impl Hand {
                         pairer.value == unseen.value && pairer != unseen
                     }).count() == 3
                 }).count() / 4
+            },
+            HandType::FullHouse(card, _) => {
+                unseen_cards.iter().filter(|&unseen| {
+                    card < unseen &&
+                    unseen_cards.iter().filter(|&pairer| {
+                        pairer.value == unseen.value && pairer != unseen
+                    }).count() >= 2 &&
+                    unseen_cards.iter().filter(|&carried|{
+                        carried.value != unseen.value &&
+                        unseen_cards.iter().any(|&carried_pair| {
+                            carried.value == carried_pair.value
+                        })
+                    }).count() > 0
+                }).count() / 3
             }
         }
     }
@@ -191,7 +212,7 @@ impl Hand {
         //TODO: fuck all this casting
         //But also accounting for bombs worsens this, so there might have to be
         //multiple functions
-        let winners: u32 = self.num_plays_that_beat(unseen_cards) as u32;
+        let winners: u32 = self.num_non_bomb_plays_that_beat(unseen_cards) as u32;
         let numerator = (winners * ncr(unseen_cards.len() as u32, opp_hand_freedom)) as f64;
         let denominator = ncr(unseen_cards.len() as u32, opp_hand_size) as f64;
         return numerator / denominator;
