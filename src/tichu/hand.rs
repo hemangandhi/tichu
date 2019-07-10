@@ -38,6 +38,23 @@ impl Value {
             Value::Dragon => Value::Dragon,
         }
     }
+
+    pub fn values_that_beat(&self) -> impl Iterator<Item=Self> {
+        self.into_iter()
+    }
+}
+
+impl Iterator for Value {
+    type Item=Self;
+
+    fn next(&mut self) -> Option<Self> {
+        if self.next_value() == *self {
+            Option::None
+        } else {
+            Option::Some(self.next_value())
+        }
+    }
+
 }
 
 #[derive(Eq, Debug)]
@@ -172,6 +189,10 @@ impl Hand {
             HandType::StraightFlush(_, _) | HandType::FourOfAKind(_) => true,
             _ => false
         }
+    }
+
+    fn groups_of_n_that_beat(n: u32, card: Card, use_pheonix: bool) -> usize {
+        
     }
 
     //hypocritical in that bombs themselves should be passed in here
