@@ -9,7 +9,7 @@ pub enum Suit{
     Special
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Value{
     Dog, //Mahjong = Numeric(1)
     Numeric(u32),
@@ -39,8 +39,22 @@ impl Value {
         }
     }
 
-    pub fn values_that_beat(&self) -> impl Iterator<Item=Self> {
-        self.into_iter()
+    pub fn ordinal(&self) -> i32 {
+        match &self {
+            Value::Dog => 0,
+            Value::Numeric(n) => n.to_owned() as i32,
+            Value::Jack => 11,
+            Value::Queen => 12,
+            Value::King => 13,
+            Value::Ace => 14,
+            //Just to satisfy the compiler
+            Value::Pheonix => 15,
+            Value::Dragon => 16,
+        }
+    }
+
+    pub fn distance_to(&self, other: &Self) -> i32 {
+        self.ordinal() - other.ordinal()
     }
 }
 
@@ -73,65 +87,7 @@ impl Ord for Card{
     //self is <ret val> than other
     //hecking gross, but done
     fn cmp(&self, other: &Self) -> Ordering {
-        if other.value == self.value {
-            return Ordering::Equal;
-        }
-
-        match self.value {
-            Value::Dragon => Ordering::Greater,
-            Value::Pheonix => {
-                if other.value == Value::Dragon {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            },
-            Value::Ace => {
-                if other.value == Value::Dragon
-                    || other.value == Value::Pheonix {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            },
-            Value::King => {
-                if other.value == Value::Ace || other.value == Value::Dragon
-                    || other.value == Value::Pheonix {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            },
-            Value::Queen => {
-                if other.value == Value::King || other.value == Value::Ace
-                    || other.value == Value::Dragon
-                    || other.value == Value::Pheonix {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            },
-            Value::Jack => {
-                if other.value == Value::Queen || other.value == Value::King
-                    || other.value == Value::Ace
-                    || other.value == Value::Dragon
-                    || other.value == Value::Pheonix {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
-            },
-            Value::Numeric(self_n) => {
-                if let Value::Numeric(other_n) = other.value {
-                    self_n.cmp(&other_n)
-                } else if other.value == Value::Dog {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                }
-            },
-            Value::Dog => Ordering::Greater
-        }
+        self.value.ordinal().cmp(&other.value.ordinal())
     }
 }
 
@@ -183,6 +139,16 @@ cached!{
     }
 }
 
+fn groups_of_n_such_that(n: u32, cond: Option<&Value>, use_pheonix: bool, unseen: &Vec<Card>) -> u32 {
+    // Value::Dog is not covered, but it's impossible to play, so who cares
+    let bottom: Value = if let Option::Some(&to_beat) = cond { to_beat } else { Value::Dog };
+    let mut total = 0;
+    for value in bottom {
+        total += ncr(unseen.iter().filter(|&card| card.value == value || (use_pheonix && card.value == Value::Pheonix)).count() as u32, n);
+    }
+    return total;
+}
+
 impl Hand {
     pub fn is_bomb(&self) -> bool {
         match self.rank {
@@ -191,115 +157,70 @@ impl Hand {
         }
     }
 
-    fn groups_of_n_that_beat(n: u32, card: Card, use_pheonix: bool) -> usize {
-        
-    }
-
     //hypocritical in that bombs themselves should be passed in here
-    fn num_non_bomb_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> usize {
+    fn num_non_bomb_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> u32 {
         match &self.rank {
-            HandType::Single(card) => {
-                unseen_cards.iter().filter(|&unseen| card < unseen).count()
-            },
-            HandType::Pair(card) => {
-                unseen_cards.iter().map(|&unseen| {
-                    if card < &unseen {
-                        unseen_cards.iter().filter(|&pairer| {
-                            (pairer.value == unseen.value && pairer != &unseen)
-                                || pairer.value == Value::Pheonix     // the division by 2 later makes
-                                || (unseen.value == Value::Pheonix && // it better for us to just be sure
-                                    pairer > card)                    // we're double-counting
-                        }).count()
-                    } else { 0 }
-                }).sum::<usize>() / 2
-            },
-            HandType::Triple(card) => {
-                unseen_cards.iter().filter(|&unseen| {
-                    card < unseen && unseen.value != Value::Pheonix &&
-                    unseen_cards.iter().filter(|&pairer| {
-                        pairer.value == unseen.value && pairer != unseen
-                    }).count() >= 2
-                }).count() / 3 +
-                //here, this is the easier way to account for the pheonix
-                if unseen_cards.iter().any(|&u| u.value == Value::Pheonix) {
-                    unseen_cards.iter().map(|&unseen| {
-                        if &unseen > card {
-                            unseen_cards.iter()
-                            .filter(|&p| p != &unseen && p.value == unseen.value)
-                            .count()
-                        } else { 0 }
-                    }).sum::<usize>() / 2 //we still double-count the pheonix-free pairs
-                } else { 0 }
-            },
-            HandType::FourOfAKind(card) => {
-                unseen_cards.iter().filter(|&unseen| {
-                    card < unseen &&
-                    unseen_cards.iter().filter(|&pairer| {
-                        pairer.value == unseen.value && pairer != unseen
-                    }).count() == 3
-                }).count() / 4
-            },
+            HandType::Single(card) => groups_of_n_such_that(1, Option::Some(&card.value), true, unseen_cards),
+            HandType::Pair(card) => groups_of_n_such_that(2, Option::Some(&card.value), true, unseen_cards),
+            HandType::Triple(card) => groups_of_n_such_that(3, Option::Some(&card.value), true, unseen_cards),
+            // Can't use a Pheonix to beat a bomb
+            HandType::FourOfAKind(card) => groups_of_n_such_that(4, Option::Some(&card.value), false, unseen_cards),
             HandType::FullHouse(card, _) => {
-                unseen_cards.iter().map(|&unseen: &Card| -> usize {
-                    if card < &unseen &&
-                        unseen_cards.iter().filter(|&pairer| {
-                            pairer.value == unseen.value && pairer != &unseen
-                        }).count() >= 2 {
-                        unseen_cards.iter().filter(|&carried|{
-                            carried.value != unseen.value &&
-                            unseen_cards.iter().any(|&carried_pair| {
-                                carried.value == carried_pair.value
-                            })
-                        }).count() / 2
-                    } else { 0 }
-                }).sum::<usize>() / 3
+                // union
+                (groups_of_n_such_that(3, Option::Some(&card.value), true, unseen_cards)
+                 * groups_of_n_such_that(2, Option::None, false, unseen_cards))
+                + (groups_of_n_such_that(3, Option::Some(&card.value), false, unseen_cards)
+                 * groups_of_n_such_that(2, Option::None, true, unseen_cards))
+                // minus the intersection
+                - (groups_of_n_such_that(3, Option::Some(&card.value), false, unseen_cards)
+                 * groups_of_n_such_that(2, Option::None, false, unseen_cards))
             },
             //TODO: the arms below here are just to compile and are
             //otherwise absurd
             HandType::ConsecutivePairs(card, length) => {
-                unseen_cards.iter().map(|&unseen: &Card| -> usize {
+                (unseen_cards.iter().map(|unseen: &Card| -> usize {
                     if card < &unseen &&
-                        unseen_cards.iter().filter(|&pairer| {
+                        unseen_cards.iter().filter(|pairer| {
                             pairer.value == unseen.value && pairer != &unseen
                         }).count() >= 2 {
-                        unseen_cards.iter().filter(|&carried|{
+                        unseen_cards.iter().filter(|carried|{
                             carried.value != unseen.value &&
-                            unseen_cards.iter().any(|&carried_pair| {
+                            unseen_cards.iter().any(|carried_pair| {
                                 carried.value == carried_pair.value
                             })
                         }).count() / 2
                     } else { 0 }
-                }).sum::<usize>() / 3
+                }).sum::<usize>() / 3) as u32
             },
             HandType::Straight(card, length) => {
-                unseen_cards.iter().map(|&unseen: &Card| -> usize {
+                (unseen_cards.iter().map(|unseen: &Card| -> usize {
                     if card < &unseen &&
-                        unseen_cards.iter().filter(|&pairer| {
+                        unseen_cards.iter().filter(|pairer| {
                             pairer.value == unseen.value && pairer != &unseen
                         }).count() >= 2 {
-                        unseen_cards.iter().filter(|&carried|{
+                        unseen_cards.iter().filter(|carried|{
                             carried.value != unseen.value &&
-                            unseen_cards.iter().any(|&carried_pair| {
+                            unseen_cards.iter().any(|carried_pair| {
                                 carried.value == carried_pair.value
                             })
                         }).count() / 2
                     } else { 0 }
-                }).sum::<usize>() / 3
+                }).sum::<usize>() / 3) as u32
             },
             HandType::StraightFlush(card, length) => {
-                unseen_cards.iter().map(|&unseen: &Card| -> usize {
+                (unseen_cards.iter().map(|unseen: &Card| -> usize {
                     if card < &unseen &&
-                        unseen_cards.iter().filter(|&pairer| {
+                        unseen_cards.iter().filter(|pairer| {
                             pairer.value == unseen.value && pairer != &unseen
                         }).count() >= 2 {
-                        unseen_cards.iter().filter(|&carried|{
+                        unseen_cards.iter().filter(|carried|{
                             carried.value != unseen.value &&
-                            unseen_cards.iter().any(|&carried_pair| {
+                            unseen_cards.iter().any(|carried_pair| {
                                 carried.value == carried_pair.value
                             })
                         }).count() / 2
                     } else { 0 }
-                }).sum::<usize>() / 3
+                }).sum::<usize>() / 3) as u32
             }
         }
     }
