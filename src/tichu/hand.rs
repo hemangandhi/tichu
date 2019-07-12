@@ -71,6 +71,18 @@ impl Iterator for Value {
 
 }
 
+impl Ord for Value{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.ordinal().cmp(&other.ordinal())
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 #[derive(Eq, Debug)]
 pub struct Card{
     pub suit: Suit,
@@ -139,13 +151,51 @@ cached!{
     }
 }
 
-fn groups_of_n_such_that(n: u32, cond: Option<&Value>, use_pheonix: bool, unseen: &Vec<Card>) -> u32 {
+fn groups_of_n_such_that(n: u32, cond: Option<&Value>, use_pheonix: bool,
+                         unseen: &Vec<Card>) -> u32 {
     // Value::Dog is not covered, but it's impossible to play, so who cares
-    let bottom: Value = if let Option::Some(&to_beat) = cond { to_beat } else { Value::Dog };
+    let bottom: Value = if let Option::Some(&to_beat) = cond { to_beat }
+                        else { Value::Dog };
     let mut total = 0;
     for value in bottom {
-        total += ncr(unseen.iter().filter(|&card| card.value == value || (use_pheonix && card.value == Value::Pheonix)).count() as u32, n);
+        total += ncr(unseen.iter().filter(|&card| card.value == value ||
+                                          (use_pheonix &&
+                                           card.value == Value::Pheonix))
+                           .count() as u32, n);
     }
+    return total;
+}
+
+fn length_n_straights_of_k_beating(n: u32, k: u32, bottom: &Value,
+                                   use_pheonix: bool,
+                                   unseen: &Vec<Card>) -> u32 {
+    let mut total = 0;
+    for value in *bottom{
+        let mut counts: Vec<u32> = Vec::with_capacity(n as usize);
+        for card in unseen {
+            let dist = card.value.distance_to(&value);
+            if dist >= 0 && dist < (n as i32) && card.value <= Value::Ace{
+                counts[dist as usize]+= 1;
+            }
+        }
+
+        let mut broke = false;
+        if use_pheonix &&
+            unseen.iter().any(|card| card.value == Value::Pheonix) {
+            for mut c in &mut counts {
+                if *c < k {
+                    *c += 1;
+                    broke = true;
+                    break;
+                }
+            }
+        }
+        total += counts.iter().map(|c| ncr(n, k)).product::<u32>() +
+            if broke || !use_pheonix ||
+                unseen.iter().all(|card| card.value != Value::Pheonix) { 0 }
+            else { n };
+    }
+
     return total;
 }
 
@@ -160,11 +210,19 @@ impl Hand {
     //hypocritical in that bombs themselves should be passed in here
     fn num_non_bomb_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> u32 {
         match &self.rank {
-            HandType::Single(card) => groups_of_n_such_that(1, Option::Some(&card.value), true, unseen_cards),
-            HandType::Pair(card) => groups_of_n_such_that(2, Option::Some(&card.value), true, unseen_cards),
-            HandType::Triple(card) => groups_of_n_such_that(3, Option::Some(&card.value), true, unseen_cards),
+            HandType::Single(card) =>
+                groups_of_n_such_that(1, Option::Some(&card.value),
+                                      true, unseen_cards),
+            HandType::Pair(card) =>
+                groups_of_n_such_that(2, Option::Some(&card.value),
+                                      true, unseen_cards),
+            HandType::Triple(card) =>
+                groups_of_n_such_that(3, Option::Some(&card.value),
+                                      true, unseen_cards),
             // Can't use a Pheonix to beat a bomb
-            HandType::FourOfAKind(card) => groups_of_n_such_that(4, Option::Some(&card.value), false, unseen_cards),
+            HandType::FourOfAKind(card) =>
+                groups_of_n_such_that(4, Option::Some(&card.value),
+                                      false, unseen_cards),
             HandType::FullHouse(card, _) => {
                 // union
                 (groups_of_n_such_that(3, Option::Some(&card.value), true, unseen_cards)
