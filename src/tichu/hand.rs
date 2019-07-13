@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Suit{
     House,
     Star,
@@ -172,10 +172,14 @@ fn length_n_straights_of_k_beating(n: u32, k: u32, bottom: &Value,
     let mut total = 0;
     for value in *bottom{
         let mut counts: Vec<u32> = Vec::with_capacity(n as usize);
+        let mut suit = Suit::House;
+        let mut suit_unset = true;
         for card in unseen {
             let dist = card.value.distance_to(&value);
-            if dist >= 0 && dist < (n as i32) && card.value <= Value::Ace{
+            if dist >= 0 && dist < (n as i32) && card.value <= Value::Ace && (use_pheonix || suit_unset || card.suit == suit) {
                 counts[dist as usize]+= 1;
+                suit_unset = false;
+                suit = card.suit;
             }
         }
 
@@ -233,53 +237,9 @@ impl Hand {
                 - (groups_of_n_such_that(3, Option::Some(&card.value), false, unseen_cards)
                  * groups_of_n_such_that(2, Option::None, false, unseen_cards))
             },
-            //TODO: the arms below here are just to compile and are
-            //otherwise absurd
-            HandType::ConsecutivePairs(card, length) => {
-                (unseen_cards.iter().map(|unseen: &Card| -> usize {
-                    if card < &unseen &&
-                        unseen_cards.iter().filter(|pairer| {
-                            pairer.value == unseen.value && pairer != &unseen
-                        }).count() >= 2 {
-                        unseen_cards.iter().filter(|carried|{
-                            carried.value != unseen.value &&
-                            unseen_cards.iter().any(|carried_pair| {
-                                carried.value == carried_pair.value
-                            })
-                        }).count() / 2
-                    } else { 0 }
-                }).sum::<usize>() / 3) as u32
-            },
-            HandType::Straight(card, length) => {
-                (unseen_cards.iter().map(|unseen: &Card| -> usize {
-                    if card < &unseen &&
-                        unseen_cards.iter().filter(|pairer| {
-                            pairer.value == unseen.value && pairer != &unseen
-                        }).count() >= 2 {
-                        unseen_cards.iter().filter(|carried|{
-                            carried.value != unseen.value &&
-                            unseen_cards.iter().any(|carried_pair| {
-                                carried.value == carried_pair.value
-                            })
-                        }).count() / 2
-                    } else { 0 }
-                }).sum::<usize>() / 3) as u32
-            },
-            HandType::StraightFlush(card, length) => {
-                (unseen_cards.iter().map(|unseen: &Card| -> usize {
-                    if card < &unseen &&
-                        unseen_cards.iter().filter(|pairer| {
-                            pairer.value == unseen.value && pairer != &unseen
-                        }).count() >= 2 {
-                        unseen_cards.iter().filter(|carried|{
-                            carried.value != unseen.value &&
-                            unseen_cards.iter().any(|carried_pair| {
-                                carried.value == carried_pair.value
-                            })
-                        }).count() / 2
-                    } else { 0 }
-                }).sum::<usize>() / 3) as u32
-            }
+            HandType::ConsecutivePairs(card, length) => length_n_straights_of_k_beating(*length, 2, &card.value, true, unseen_cards),
+            HandType::Straight(card, length) => length_n_straights_of_k_beating(*length, 1, &card.value, true, unseen_cards),
+            HandType::StraightFlush(card, length) => length_n_straights_of_k_beating(*length, 1, &card.value, false, unseen_cards),
         }
     }
 
