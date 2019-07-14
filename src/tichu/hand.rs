@@ -23,6 +23,8 @@ pub enum Value {
     Dragon,
 }
 
+pub static normal_values: [Value; 13] = [Value::Numeric(2), Value::Numeric(3), Value::Numeric(4), Value::Numeric(5), Value::Numeric(6), Value::Numeric(7), Value::Numeric(8), Value::Numeric(9), Value::Numeric(10), Value::Jack, Value::Queen, Value::King, Value::Ace];
+
 impl Value {
     pub fn next_value(&self) -> Self {
         //technically, this method should always also return
