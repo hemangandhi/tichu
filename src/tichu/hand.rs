@@ -9,8 +9,6 @@ pub enum Suit {
     Special,
 }
 
-pub static normal_suits: [Suit; 4] = [Suit::House, Suit::Star, Suit::Sword, Suit::Jade];
-
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Value {
     Dog, //Mahjong = Numeric(1)

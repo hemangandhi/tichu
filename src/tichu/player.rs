@@ -7,24 +7,236 @@ use crate::tichu::hand;
 
 pub type PlayerCards = [hand::Card; 14];
 
-pub static deck: [hand::Card; 14 * 4] = {
-    let mut cards: [hand::Card; 14 * 4];
-    let mut idx = 0;
-    for suit in hand::normal_suits.iter() {
-        for value in hand::Value::Dog {
-            if value > hand::Value::Ace {
-                break;
-            }
+// Forgive me father, for I have sinned...
+// TODO: use `const fn` to make this not trash
+pub static deck: [hand::Card; 14 * 4] = [
+    hand::Card {
+        value: hand::Value::Numeric(2),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(2),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(2),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(2),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(3),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(3),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(3),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(3),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(4),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(4),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(4),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(4),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(5),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(5),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(5),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(5),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(6),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(6),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(6),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(6),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(7),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(7),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(7),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(7),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(8),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(8),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(8),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(8),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(9),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(9),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(9),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(9),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Numeric(10),
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Numeric(10),
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Numeric(10),
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Numeric(10),
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Jack,
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Jack,
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Jack,
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Jack,
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Queen,
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Queen,
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Queen,
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Queen,
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::King,
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::King,
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::King,
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::King,
+        suit: hand::Suit::Jade
+    },
+    hand::Card {
+        value: hand::Value::Ace,
+        suit: hand::Suit::House
+    },
+    hand::Card {
+        value: hand::Value::Ace,
+        suit: hand::Suit::Star
+    },
+    hand::Card {
+        value: hand::Value::Ace,
+        suit: hand::Suit::Sword
+    },
+    hand::Card {
+        value: hand::Value::Ace,
+        suit: hand::Suit::Jade
+    },
 
-            cards[idx] = hand::Card {
-                suit: *suit,
-                value: value,
-            };
-            idx += 1;
-        }
-    }
-    cards
-};
+    // Tishu-specific
+    hand::Card {
+        value: hand::Value::Numeric(1),
+        suit: hand::Suit::Special
+    },
+    hand::Card {
+        value: hand::Value::Dog,
+        suit: hand::Suit::Special
+    },
+    hand::Card {
+        value: hand::Value::Pheonix,
+        suit: hand::Suit::Special
+    },
+    hand::Card {
+        value: hand::Value::Dragon,
+        suit: hand::Suit::Special
+    },
+];
 
 pub struct Game {
     pub players: [PlayerCards; 4],
