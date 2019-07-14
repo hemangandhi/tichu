@@ -9,6 +9,8 @@ pub enum Suit{
     Special
 }
 
+pub static normal_suits: [Suit; 4] = [Suit::House, Suit::Star, Suit::Sword, Suit::Jade];
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Value{
     Dog, //Mahjong = Numeric(1)
@@ -172,6 +174,7 @@ fn length_n_straights_of_k_beating(n: u32, k: u32, bottom: &Value,
     let mut total = 0;
     for value in *bottom{
         let mut counts: Vec<u32> = Vec::with_capacity(n as usize);
+        for i in 0..n { counts.push(0); }
         let mut suit = Suit::House;
         let mut suit_unset = true;
         for card in unseen {
@@ -248,7 +251,7 @@ impl Hand {
         //number of hands that beat self * (number of cards left choose # other cards in hand)
         //----------------------------------------------------------------------------------
         //            (number of cards left choose the # cards in hand)
-        let opp_hand_freedom: u32 = opp_hand_size - self.rank.num_cards();
+        let opp_hand_freedom: i32 = opp_hand_size as i32 - self.rank.num_cards() as i32;
         if opp_hand_freedom < 0 { return 0f64; }
 
         //TODO: fuck all this casting
