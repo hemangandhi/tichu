@@ -62,10 +62,18 @@ impl Value {
         self.ordinal() - other.ordinal()
     }
 
-    pub fn point_value(&self) -> u32 {
+    pub fn point_value(&self, keep_dragon: bool) -> i32 {
         match &self {
             Value::Numeric(5) => 5,
             Value::King | Value::Numeric(10) => 10,
+            Value::Dragon => {
+                if keep_dragon {
+                    25
+                } else {
+                    0
+                }
+            }
+            Value::Pheonix => -25,
             _ => 0,
         }
     }
@@ -249,8 +257,11 @@ fn count_straight_flush_bombs(n_cards: u32, unseen_cards: &[Card]) -> u32 {
 }
 
 impl Hand {
-    pub fn value(&self) -> u32 {
-        self.cards.iter().map(|c| c.value.point_value()).sum()
+    pub fn value(&self, keep_dragon: bool) -> i32 {
+        self.cards
+            .iter()
+            .map(|c| c.value.point_value(keep_dragon))
+            .sum()
     }
 
     pub fn is_bomb(&self) -> bool {
