@@ -253,87 +253,23 @@ impl<'a> Game<'a> {
         shuffled.copy_from_slice(&deck);
         shuffled.shuffle(&mut thread_rng());
 
-        //TODO: copy trait is needed...
-        let hands: [&'a mut PlayerCards; 4] = [
-            [
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-            ] as &'a mut PlayerCards,
-            [
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-            ] as &'a mut PlayerCards,
-            [
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-            ] as &'a mut PlayerCards,
-            [
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-                Option::None,
-            ] as &'a mut PlayerCards,
-        ];
-        let mut i = 0;
-        for hand in shuffled.chunks(14) {
-            let mut j = 0;
-            for card in hand {
-                hands[i][j] = Option::Some(*card);
-                j += 1;
+        unsafe {
+            let hands: [&'a mut PlayerCards; 4] = std::mem::uninitialized();
+            let mut i = 0;
+            for hand in shuffled.chunks(14) {
+                let mut j = 0;
+                for card in hand {
+                    hands[i][j] = Option::Some(*card);
+                    j += 1;
+                }
+                i += 1
             }
-            i += 1
+            Game {
+                players: hands,
+                slash_score: 0,
+                cross_score: 0,
+            }
         }
 
-        Game {
-            players: hands,
-            slash_score: 0,
-            cross_score: 0,
-        }
     }
 }
