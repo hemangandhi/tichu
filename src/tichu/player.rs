@@ -237,6 +237,7 @@ pub static deck: [hand::Card; 14 * 4] = [
     },
 ];
 
+#[derive(Debug)]
 pub struct Game<'a> {
     pub players: [&'a mut PlayerCards; 4],
     pub slash_score: i32, // slash and cross are arbitrary, just

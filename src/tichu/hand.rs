@@ -61,6 +61,14 @@ impl Value {
     pub fn distance_to(&self, other: &Self) -> i32 {
         self.ordinal() - other.ordinal()
     }
+
+    pub fn point_value(&self) -> u32 {
+        match &self {
+            Value::Numeric(5) => 5,
+            Value::King | Value::Numeric(10) => 10,
+            _ => 0,
+        }
+    }
 }
 
 impl Iterator for Value {
@@ -143,7 +151,7 @@ impl HandType {
 #[derive(PartialEq, Eq, Debug)]
 pub struct Hand {
     pub rank: HandType,
-    pub cards: Vec<Card>,
+    pub cards: [Card],
 }
 
 cached! {
@@ -241,6 +249,10 @@ fn count_straight_flush_bombs(n_cards: u32, unseen_cards: &[Card]) -> u32 {
 }
 
 impl Hand {
+    pub fn value(&self) -> u32 {
+        self.cards.iter().map(|c| c.value.point_value()).sum()
+    }
+
     pub fn is_bomb(&self) -> bool {
         match self.rank {
             HandType::StraightFlush(_, _) | HandType::FourOfAKind(_) => true,
