@@ -3,6 +3,6 @@ extern crate cached;
 mod tichu;
 
 fn main() {
-    let t = tichu::player::Game::New();
+    let t = tichu::game::Game::New();
     println!("{:?}", t)
 }

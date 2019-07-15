@@ -243,6 +243,13 @@ pub struct Game<'a> {
     pub slash_score: i32, // slash and cross are arbitrary, just
     pub cross_score: i32, // to distinguish the teams (players know
                           // about their partner)
+    turn_index: &'a mut u8,
+}
+
+pub trait Player {
+    // maintaining the unseen cards is the player's perogative
+    pub fn play(own_hand: PlayerCards) -> hand::Hand;
+    pub fn record_other_play(play: hand::Hand, is_partner: bool);
 }
 
 impl<'a> Game<'a> {
@@ -270,6 +277,15 @@ impl<'a> Game<'a> {
                 slash_score: 0,
                 cross_score: 0,
             }
+        }
+    }
+
+    pub fn play_move(&self, players: [impl Player; 4]){
+        let mut curr_hand = self.players[self.turn_index];
+        let hand = players[self.turn_index].play(curr_hand);
+        for i in 0..4 {
+            if i == self.turn_index { continue; }
+            players[i].record_other_play(hand, abs(i - turn_index) == 2);
         }
     }
 }
