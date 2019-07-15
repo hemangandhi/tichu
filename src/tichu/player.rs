@@ -270,6 +270,5 @@ impl<'a> Game<'a> {
                 cross_score: 0,
             }
         }
-
     }
 }

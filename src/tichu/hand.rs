@@ -155,12 +155,7 @@ cached! {
     }
 }
 
-fn groups_of_n_such_that(
-    n: u32,
-    cond: Option<&Value>,
-    use_pheonix: bool,
-    unseen: &Vec<Card>,
-) -> u32 {
+fn groups_of_n_such_that(n: u32, cond: Option<&Value>, use_pheonix: bool, unseen: &[Card]) -> u32 {
     // Value::Dog is not covered, but it's impossible to play, so who cares
     let bottom: Value = if let Option::Some(&to_beat) = cond {
         to_beat
@@ -187,7 +182,7 @@ fn length_n_straights_of_k_beating(
     k: u32,
     bottom: &Value,
     use_pheonix: bool,
-    unseen: &Vec<Card>,
+    unseen: &[Card],
 ) -> u32 {
     let mut total = 0;
     for value in *bottom {
@@ -231,6 +226,20 @@ fn length_n_straights_of_k_beating(
     return total;
 }
 
+fn count_straight_flush_bombs(n_cards: u32, unseen_cards: &[Card]) -> u32 {
+    (5..13)
+        .map(|len| {
+            let choice = n_cards as i32 - len as i32;
+            if choice > 0 {
+                length_n_straights_of_k_beating(len, 1, &Value::Dog, false, unseen_cards)
+                    * ncr(unseen_cards.len() as u32, choice as u32)
+            } else {
+                0
+            }
+        })
+        .sum::<u32>()
+}
+
 impl Hand {
     pub fn is_bomb(&self) -> bool {
         match self.rank {
@@ -240,7 +249,7 @@ impl Hand {
     }
 
     //hypocritical in that bombs themselves should be passed in here
-    fn num_non_bomb_plays_that_beat(&self, unseen_cards: &Vec<Card>) -> u32 {
+    fn num_non_bomb_plays_that_beat(&self, unseen_cards: &[Card]) -> u32 {
         match &self.rank {
             HandType::Single(card) => {
                 groups_of_n_such_that(1, Option::Some(&card.value), true, unseen_cards)
@@ -277,7 +286,7 @@ impl Hand {
         }
     }
 
-    pub fn probability_of_being_beaten(&self, unseen_cards: &Vec<Card>, opp_hand_size: u32) -> f64 {
+    pub fn probability_of_being_beaten(&self, unseen_cards: &[Card], opp_hand_size: u32) -> f64 {
         //number of hands that beat self * (number of cards left choose # other cards in hand)
         //----------------------------------------------------------------------------------
         //            (number of cards left choose the # cards in hand)
@@ -292,7 +301,25 @@ impl Hand {
         let winners: u32 = self.num_non_bomb_plays_that_beat(unseen_cards) as u32;
         let numerator = (winners * ncr(unseen_cards.len() as u32, opp_hand_freedom as u32)) as f64;
         let denominator = ncr(unseen_cards.len() as u32, opp_hand_size) as f64;
-        return numerator / denominator;
+        if self.is_bomb() {
+            // num_non_bomb_plays_that_beat already has the FourOfAKind
+            // hands that will beat this, this is just the StraightFlush
+            // bombs on top of that
+            if let HandType::FourOfAKind(f_) = self.rank {
+                return (count_straight_flush_bombs(opp_hand_size, unseen_cards) as f64 + numerator)
+                    / denominator;
+            }
+            return numerator / denominator;
+        } else {
+            return (count_straight_flush_bombs(opp_hand_size, unseen_cards) as f64
+                + if opp_hand_size >= 4 {
+                    groups_of_n_such_that(4, Option::None, false, unseen_cards)
+                } else {
+                    0
+                } as f64
+                + numerator)
+                / denominator;
+        }
     }
 }
 
