@@ -129,7 +129,7 @@ impl PartialOrd for Card {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum HandType {
     Single(Card),
     Pair(Card),
@@ -156,10 +156,10 @@ impl HandType {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
-pub struct Hand {
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Hand<'a> {
     pub rank: HandType,
-    pub cards: [Card],
+    pub cards: &'a [Card],
 }
 
 cached! {
@@ -203,7 +203,7 @@ fn length_n_straights_of_k_beating(
     let mut total = 0;
     for value in *bottom {
         let mut counts: Vec<u32> = Vec::with_capacity(n as usize);
-        for i in 0..n {
+        for _i in 0..n {
             counts.push(0);
         }
         let mut suit = Suit::House;
@@ -223,7 +223,7 @@ fn length_n_straights_of_k_beating(
 
         let mut broke = false;
         if use_pheonix && unseen.iter().any(|card| card.value == Value::Pheonix) {
-            for mut c in &mut counts {
+            for c in &mut counts {
                 if *c < k {
                     *c += 1;
                     broke = true;
@@ -231,7 +231,7 @@ fn length_n_straights_of_k_beating(
                 }
             }
         }
-        total += counts.iter().map(|c| ncr(n, k)).product::<u32>()
+        total += counts.iter().map(|c| ncr(*c, k)).product::<u32>()
             + if broke || !use_pheonix || unseen.iter().all(|card| card.value != Value::Pheonix) {
                 0
             } else {
@@ -256,7 +256,7 @@ fn count_straight_flush_bombs(n_cards: u32, unseen_cards: &[Card]) -> u32 {
         .sum::<u32>()
 }
 
-impl Hand {
+impl<'a> Hand<'a> {
     pub fn value(&self, keep_dragon: bool) -> i32 {
         self.cards
             .iter()
@@ -328,7 +328,7 @@ impl Hand {
             // num_non_bomb_plays_that_beat already has the FourOfAKind
             // hands that will beat this, this is just the StraightFlush
             // bombs on top of that
-            if let HandType::FourOfAKind(f_) = self.rank {
+            if let HandType::FourOfAKind(_f) = self.rank {
                 return (count_straight_flush_bombs(opp_hand_size, unseen_cards) as f64 + numerator)
                     / denominator;
             }
@@ -347,7 +347,7 @@ impl Hand {
 }
 
 //This comparision is for trick-taking/playing legalities...
-impl PartialOrd for Hand {
+impl<'a> PartialOrd for Hand<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match &self.rank {
             HandType::Single(self_card) => {
