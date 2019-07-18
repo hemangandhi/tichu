@@ -131,6 +131,7 @@ impl PartialOrd for Card {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum HandType {
+    Pass,
     Single(Card),
     Pair(Card),
     Triple(Card),
@@ -144,6 +145,7 @@ pub enum HandType {
 impl HandType {
     pub fn num_cards(&self) -> u32 {
         match &self {
+            HandType::Pass => 0,
             HandType::Single(_) => 1,
             HandType::Pair(_) => 2,
             HandType::Triple(_) => 3,
@@ -274,6 +276,7 @@ impl<'a> Hand<'a> {
     //hypocritical in that bombs themselves should be passed in here
     fn num_non_bomb_plays_that_beat(&self, unseen_cards: &[Card]) -> u32 {
         match &self.rank {
+            HandType::Pass => 1,
             HandType::Single(card) => {
                 groups_of_n_such_that(1, Option::Some(&card.value), true, unseen_cards)
             }
@@ -309,6 +312,10 @@ impl<'a> Hand<'a> {
         }
     }
 
+    fn is_pass(&self) -> bool {
+        return self.rank == HandType::Pass;
+    }
+
     pub fn probability_of_being_beaten(&self, unseen_cards: &[Card], opp_hand_size: u32) -> f64 {
         //number of hands that beat self * (number of cards left choose # other cards in hand)
         //----------------------------------------------------------------------------------
@@ -319,8 +326,6 @@ impl<'a> Hand<'a> {
         }
 
         //TODO: fuck all this casting
-        //But also accounting for bombs worsens this, so there might have to be
-        //multiple functions
         let winners: u32 = self.num_non_bomb_plays_that_beat(unseen_cards) as u32;
         let numerator = (winners * ncr(unseen_cards.len() as u32, opp_hand_freedom as u32)) as f64;
         let denominator = ncr(unseen_cards.len() as u32, opp_hand_size) as f64;
@@ -333,6 +338,9 @@ impl<'a> Hand<'a> {
                     / denominator;
             }
             return numerator / denominator;
+        } else if self.is_pass() {
+            // this is really meaningless, but well...
+            return 1 as f64;
         } else {
             return (count_straight_flush_bombs(opp_hand_size, unseen_cards) as f64
                 + if opp_hand_size >= 4 {
@@ -350,6 +358,10 @@ impl<'a> Hand<'a> {
 impl<'a> PartialOrd for Hand<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match &self.rank {
+            HandType::Pass => match &other.rank {
+                HandType::Pass => Option::Some(Ordering::Equal),
+                _ => Option::None,
+            },
             HandType::Single(self_card) => {
                 if let HandType::Single(other_card) = &other.rank {
                     Option::Some(self_card.cmp(&other_card))
