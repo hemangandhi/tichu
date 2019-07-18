@@ -292,7 +292,11 @@ impl Game {
         }
     }
 
-    pub fn play_move<T: Player>(&mut self, curr_player: &mut T, other_players: [&mut T; 3]) {
+    fn play_move_helper<T: Player>(
+        &mut self,
+        curr_player: &mut T,
+        other_players: [&mut Option<&mut T>; 4],
+    ) {
         let curr_hand = &self.players[self.turn_index as usize];
         let (hand, calls_tichu) = curr_player.play(*curr_hand).clone();
         self.tichu_calls[self.turn_index as usize] =
@@ -308,14 +312,16 @@ impl Game {
             if i == self.turn_index {
                 continue;
             }
-            broke = other_players[i as usize].record_other_play(
-                &hand,
-                (i as i8 - self.turn_index as i8).abs() == 2,
-                calls_tichu,
-            );
-            if broke {
-                self.turn_index = i as u8;
-                break;
+            if let Option::Some(player) = other_players[i as usize] {
+                broke = player.record_other_play(
+                    &hand,
+                    (i as i8 - self.turn_index as i8).abs() == 2,
+                    calls_tichu,
+                );
+                if broke {
+                    self.turn_index = i as u8;
+                    break;
+                }
             }
         }
 
@@ -334,6 +340,54 @@ impl Game {
 
         if !broke {
             self.turn_index = (self.turn_index + 1) % 4;
+        }
+    }
+
+    pub fn play_move<T: Player>(
+        &mut self,
+        player1: &mut T,
+        player2: &mut T,
+        player3: &mut T,
+        player4: &mut T,
+    ) {
+        match self.turn_index {
+            0 => self.play_move_helper(
+                player1,
+                [
+                    &mut Option::None,
+                    &mut Option::Some(player2),
+                    &mut Option::Some(player3),
+                    &mut Option::Some(player4),
+                ],
+            ),
+            1 => self.play_move_helper(
+                player2,
+                [
+                    &mut Option::Some(player1),
+                    &mut Option::None,
+                    &mut Option::Some(player3),
+                    &mut Option::Some(player4),
+                ],
+            ),
+            2 => self.play_move_helper(
+                player3,
+                [
+                    &mut Option::Some(player1),
+                    &mut Option::Some(player2),
+                    &mut Option::None,
+                    &mut Option::Some(player4),
+                ],
+            ),
+            3 => self.play_move_helper(
+                player4,
+                [
+                    &mut Option::Some(player1),
+                    &mut Option::Some(player2),
+                    &mut Option::Some(player3),
+                    &mut Option::None,
+                ],
+            ),
+            _ => {}
         }
     }
 }
