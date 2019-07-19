@@ -250,7 +250,7 @@ fn count_straight_flush_bombs(n_cards: u32, unseen_cards: &[Card]) -> u32 {
             let choice = n_cards as i32 - len as i32;
             if choice > 0 {
                 length_n_straights_of_k_beating(len, 1, &Value::Dog, false, unseen_cards)
-                    * ncr(unseen_cards.len() as u32, choice as u32)
+                    * ncr((unseen_cards.len() as u32) - len, choice as u32)
             } else {
                 0
             }
@@ -327,7 +327,11 @@ impl<'a> Hand<'a> {
 
         //TODO: fuck all this casting
         let winners: u32 = self.num_non_bomb_plays_that_beat(unseen_cards) as u32;
-        let numerator = (winners * ncr(unseen_cards.len() as u32, opp_hand_freedom as u32)) as f64;
+        let numerator = (winners
+            * ncr(
+                (unseen_cards.len() as u32) - (self.rank.num_cards() as u32),
+                opp_hand_freedom as u32,
+            )) as f64;
         let denominator = ncr(unseen_cards.len() as u32, opp_hand_size) as f64;
         if self.is_bomb() {
             // num_non_bomb_plays_that_beat already has the FourOfAKind
