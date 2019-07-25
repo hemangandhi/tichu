@@ -237,6 +237,27 @@ pub static deck: [hand::Card; 14 * 4] = [
     },
 ];
 
+#[derive(Debug, Clone, Copy)]
+pub enum TichuCall {
+    NotYetPlayed,
+    NoCall,
+    ///Arbitrary conflict resolution: if you and a partner
+    ///call, the more confident one is picked and the other
+    ///notified. The confidences are set to 0 when passed.
+    Tichu(f64),
+    GrandTichu(f64),
+}
+
+impl TichuCall {
+    pub fn censor(&self) -> Self {
+        match *self {
+            TichuCall::Tichu(_c) => TichuCall::Tichu(0.),
+            TichuCall::GrandTichu(_c) => TichuCall::GrandTichu(0.),
+            x => x,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Game {
     pub players: [PlayerCards; 4],
@@ -244,21 +265,42 @@ pub struct Game {
     pub cross_score: i32, // to distinguish the teams (players know
     // about their partner)
     turn_index: u8,
-    tichu_calls: [Option<bool>; 4],
+    tichu_calls: [TichuCall; 4],
+    pub expected_slash_points: i32,
+    pub expected_cross_points: i32,
 }
 
 pub trait Player {
-    // maintaining the unseen cards is the player's perogative
-    // the bool should be true if the player seeks to call tichu.
-    fn play(&mut self, own_hand: PlayerCards) -> (hand::Hand, bool);
+    /// maintaining the unseen cards is the player's perogative
+    /// the bool should be true if the player seeks to call tichu.
+    fn play(&mut self, own_hand: PlayerCards) -> (hand::Hand, TichuCall);
     // the bool returned is intent to bomb
-    fn record_other_play(&mut self, play: &hand::Hand, is_partner: bool, calls_tichu: bool)
-        -> bool;
+    fn record_other_play(
+        &mut self,
+        play: &hand::Hand,
+        is_partner: bool,
+        calls_tichu: TichuCall,
+    ) -> bool;
+
+    ///First dealing bit
+    fn see_first_8(&mut self, own_hand: [hand::Card; 8]) -> TichuCall;
+    fn see_other_6(&mut self, own_hand: [hand::Card; 6]) -> TichuCall;
+
+    ///Passing cards -- might as well pass the 14 dealt cards
+    ///In all the [_; 3], assume [1] is the partner and the other 2 opponents
+    ///The TichuCall `own_call` is the result of mediation.
+    fn pass_to_players(
+        &mut self,
+        own_call: TichuCall,
+        other_calls: [TichuCall; 3],
+        own_hand: [hand::Card; 14],
+    ) -> [hand::Card; 3];
 }
 
 impl Game {
     pub fn new() -> Self {
         let mut shuffled: [hand::Card; 14 * 4] = [hand::Card {
+            // Not sure why I have to fake a card, but woofers galore!
             value: hand::Value::Dog,
             suit: hand::Suit::Special,
         }; 14 * 4];
@@ -286,8 +328,9 @@ impl Game {
                 slash_score: 0,
                 cross_score: 0,
                 turn_index: turn_index,
-                // why the fresh fuck can't I copy bools?!
-                tichu_calls: [Option::None, Option::None, Option::None, Option::None],
+                tichu_calls: [TichuCall::NotYetPlayed; 4],
+                expected_cross_points: 0,
+                expected_slash_points: 0,
             }
         }
     }
@@ -298,12 +341,25 @@ impl Game {
         other_players: [&mut Option<&mut T>; 4],
     ) {
         let curr_hand = &self.players[self.turn_index as usize];
+        if curr_hand.iter().all(Option::is_none) {
+            self.turn_index = (self.turn_index + 1) % 4;
+            return;
+        }
+
         let (hand, calls_tichu) = curr_player.play(*curr_hand).clone();
         self.tichu_calls[self.turn_index as usize] =
             match self.tichu_calls[self.turn_index as usize] {
-                Option::None => match hand.rank {
-                    hand::HandType::Pass => Option::None,
-                    _ => Option::Some(calls_tichu),
+                TichuCall::NotYetPlayed => match hand.rank {
+                    hand::HandType::Pass => TichuCall::NotYetPlayed,
+                    _ => {
+                        if let TichuCall::NotYetPlayed = calls_tichu {
+                            TichuCall::NoCall
+                        } else if let TichuCall::GrandTichu = calls_tichu {
+                            TichuCall::Tichu
+                        } else {
+                            calls_tichu
+                        }
+                    }
                 },
                 x => x,
             };
@@ -343,7 +399,7 @@ impl Game {
         }
     }
 
-    pub fn play_move<T: Player>(
+    fn play_move<T: Player>(
         &mut self,
         player1: &mut T,
         player2: &mut T,
@@ -389,5 +445,51 @@ impl Game {
             ),
             _ => {}
         }
+    }
+
+    fn show_cards_to_player<T: Player>(cards: PlayerCards, player: &mut T) -> TichuCall {
+        let mut first_8: [hand::Card; 8] = [hand::Card {
+            value: hand::Value::Dog,
+            suit: hand::Suit::Special,
+        }; 8];
+        for i in 0..8 {
+            if let Option::Some(card) = cards[i] {
+                first_8[i] = card;
+            } else {
+                panic!("Impossible: dealt less than 14 cards");
+            }
+        }
+        let call_on_8 = player.see_first_8(first_8);
+
+        let mut next_6: [hand::Card; 6] = [hand::Card {
+            value: hand::Value::Dog,
+            suit: hand::Suit::Special,
+        }; 6];
+        for i in 0..6 {
+            if let Option::Some(card) = cards[i + 8] {
+                next_6[i] = card;
+            } else {
+                panic!("Impossible: dealt less than 14 cards");
+            }
+        }
+        let call_on_next = player.see_other_6(next_6);
+        if let TichuCall::GrandTichu(_c) = call_on_8 {
+            call_on_8
+        } else {
+            call_on_next
+        }
+    }
+
+    pub fn play_game<T: Player>(
+        &mut self,
+        player1: &mut T,
+        player2: &mut T,
+        player3: &mut T,
+        player4: &mut T,
+    ) {
+        self.tichu_calls[0] = Game::show_cards_to_player(self.players[0], player1);
+        self.tichu_calls[1] = Game::show_cards_to_player(self.players[1], player2);
+        self.tichu_calls[2] = Game::show_cards_to_player(self.players[2], player3);
+        self.tichu_calls[3] = Game::show_cards_to_player(self.players[3], player4);
     }
 }
