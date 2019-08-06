@@ -1,5 +1,7 @@
 extern crate rand;
 
+use std::cmp::Ordering;
+
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
@@ -237,7 +239,7 @@ pub static deck: [hand::Card; 14 * 4] = [
     },
 ];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TichuCall {
     NotYetPlayed,
     NoCall,
@@ -246,6 +248,49 @@ pub enum TichuCall {
     ///notified. The confidences are set to 0 when passed.
     Tichu(f64),
     GrandTichu(f64),
+}
+
+impl Eq for TichuCall {}
+
+impl PartialOrd for TichuCall {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Option::Some(self.cmp(other))
+    }
+}
+
+impl Ord for TichuCall {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match &self {
+            TichuCall::GrandTichu(mc) => {
+                if let TichuCall::GrandTichu(oc) = other {
+                    mc.partial_cmp(oc).unwrap()
+                } else {
+                    Ordering::Less
+                }
+            }
+            TichuCall::Tichu(mc) => {
+                if let TichuCall::Tichu(oc) = other {
+                    mc.partial_cmp(oc).unwrap()
+                } else if let TichuCall::GrandTichu(_f) = other {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            }
+            TichuCall::NoCall => {
+                if let TichuCall::NoCall = other {
+                    Ordering::Equal
+                } else {
+                    Ordering::Less
+                }
+            }
+            TichuCall::NotYetPlayed => match other {
+                TichuCall::NoCall => Ordering::Greater,
+                TichuCall::NotYetPlayed => Ordering::Equal,
+                _ => Ordering::Less,
+            },
+        }
+    }
 }
 
 impl TichuCall {
@@ -293,7 +338,7 @@ pub trait Player {
         &mut self,
         own_call: TichuCall,
         other_calls: [TichuCall; 3],
-        own_hand: [hand::Card; 14],
+        own_hand: PlayerCards,
     ) -> [hand::Card; 3];
 }
 
@@ -354,8 +399,8 @@ impl Game {
                     _ => {
                         if let TichuCall::NotYetPlayed = calls_tichu {
                             TichuCall::NoCall
-                        } else if let TichuCall::GrandTichu = calls_tichu {
-                            TichuCall::Tichu
+                        } else if let TichuCall::GrandTichu(c) = calls_tichu {
+                            TichuCall::Tichu(c)
                         } else {
                             calls_tichu
                         }
@@ -480,6 +525,105 @@ impl Game {
         }
     }
 
+    fn swap_cards(
+        card1: hand::Card,
+        card2: hand::Card,
+        hand1: &mut PlayerCards,
+        hand2: &mut PlayerCards,
+    ) {
+        let mut into_1_broke = false;
+        for i in 0..14 {
+            if hand1[i] == Option::Some(card1) {
+                hand1[i] = Option::Some(card2);
+                into_1_broke = true;
+                break;
+            }
+        }
+
+        let mut into_2_broke = false;
+        for i in 0..14 {
+            if hand2[i] == Option::Some(card2) {
+                hand2[i] = Option::Some(card1);
+                into_2_broke = true;
+                break;
+            }
+        }
+
+        if !into_2_broke || !into_1_broke {
+            panic!("Illegal trade");
+        }
+    }
+
+    fn do_pass<T: Player>(
+        &mut self,
+        player1: &mut T,
+        player2: &mut T,
+        player3: &mut T,
+        player4: &mut T,
+    ) {
+        let p1_pass = player1.pass_to_players(
+            self.tichu_calls[0],
+            [
+                self.tichu_calls[1].censor(),
+                self.tichu_calls[2].censor(),
+                self.tichu_calls[3].censor(),
+            ],
+            self.players[0],
+        );
+        let p2_pass = player2.pass_to_players(
+            self.tichu_calls[1],
+            [
+                self.tichu_calls[0].censor(),
+                self.tichu_calls[3].censor(),
+                self.tichu_calls[2].censor(),
+            ],
+            self.players[1],
+        );
+        let p3_pass = player3.pass_to_players(
+            self.tichu_calls[2],
+            [
+                self.tichu_calls[1].censor(),
+                self.tichu_calls[0].censor(),
+                self.tichu_calls[3].censor(),
+            ],
+            self.players[2],
+        );
+        let p4_pass = player4.pass_to_players(
+            self.tichu_calls[3],
+            [
+                self.tichu_calls[0].censor(),
+                self.tichu_calls[1].censor(),
+                self.tichu_calls[2].censor(),
+            ],
+            self.players[3],
+        );
+
+        {
+            let (p0, p1) = self.players.split_at_mut(1);
+            Game::swap_cards(p1_pass[0], p2_pass[0], &mut p0[0], &mut p1[0]);
+        }
+        {
+            let (p0, p1) = self.players.split_at_mut(2);
+            Game::swap_cards(p1_pass[1], p3_pass[1], &mut p0[0], &mut p1[0]);
+        }
+        {
+            let (p0, p1) = self.players.split_at_mut(3);
+            Game::swap_cards(p1_pass[2], p4_pass[0], &mut p0[0], &mut p1[0]);
+        }
+        {
+            let (p0, p1) = self.players.split_at_mut(3);
+            Game::swap_cards(p2_pass[1], p4_pass[1], &mut p0[1], &mut p1[0]);
+        }
+        {
+            let (p0, p1) = self.players.split_at_mut(2);
+            Game::swap_cards(p2_pass[2], p3_pass[0], &mut p0[1], &mut p1[0]);
+        }
+        {
+            let (p0, p1) = self.players.split_at_mut(3);
+            Game::swap_cards(p3_pass[2], p4_pass[2], &mut p0[2], &mut p1[0]);
+        }
+    }
+
     pub fn play_game<T: Player>(
         &mut self,
         player1: &mut T,
@@ -491,5 +635,17 @@ impl Game {
         self.tichu_calls[1] = Game::show_cards_to_player(self.players[1], player2);
         self.tichu_calls[2] = Game::show_cards_to_player(self.players[2], player3);
         self.tichu_calls[3] = Game::show_cards_to_player(self.players[3], player4);
+
+        if self.tichu_calls[0] < self.tichu_calls[2] {
+            self.tichu_calls[0] = TichuCall::NotYetPlayed;
+        } else {
+            self.tichu_calls[2] = TichuCall::NotYetPlayed;
+        }
+
+        if self.tichu_calls[1] < self.tichu_calls[3] {
+            self.tichu_calls[2] = TichuCall::NotYetPlayed;
+        } else {
+            self.tichu_calls[3] = TichuCall::NotYetPlayed;
+        }
     }
 }
