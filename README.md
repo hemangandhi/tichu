@@ -1,3 +1,11 @@
+Really this will include a lot of different games and a reinforcment-learning system to see what we can learn
+about the games.
+
+# "Reinforcement Learning"
+
+I'm not sure if we have the proper assumptions for this sort of name, but the idea is that after sampling a lot
+of random games (ie. sets of states), we can try to see what chains of states lead to rewards.
+
 # Tichu
 
 See [online](https://boardgamegeek.com/boardgame/215/tichu) for the game itself.

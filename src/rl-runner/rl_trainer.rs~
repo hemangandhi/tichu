@@ -1,0 +1,6 @@
+
+pub trait PolicySpace {
+    type State;
+    fn choices(&self, current: State) -> Vec<State>;
+    fn is_end(state: State) -> bool;
+}
